@@ -43,15 +43,10 @@ def __info_gain(y, l_y, r_y):
     """
     all_labels, left_labels, right_labels = __label_stat(y, l_y, r_y)
     info_gain = 0.0
-    ###########################################################################
-    # TODO:                                                                   #
-    # Implement this method. Calculate the info gain if splitting y into      #
-    # l_y and r_y                                                             #
-    ###########################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    # =============== TODO (students) ===============
 
-    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-    
+    # ===============================================
+    raise NotImplementedError("Implement __info_gain")
     return info_gain
 
 
@@ -62,14 +57,10 @@ def __info_gain_ratio(y, l_y, r_y):
     y, l_y, r_y: label array of father node, left child node, right child node
     """
     info_gain = __info_gain(y, l_y, r_y)
-    ###########################################################################
-    # TODO:                                                                   #
-    # Implement this method. Calculate the info gain ratio if splitting y     #
-    # into l_y and r_y                                                        #
-    ###########################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    # =============== TODO (students) ===============
 
-    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    # ===============================================
+    raise NotImplementedError("Implement __info_gain_ratio")
     return info_gain
 
 
@@ -83,14 +74,10 @@ def __gini_index(y, l_y, r_y):
     before = 0.0
     after = 0.0
 
-    ###########################################################################
-    # TODO:                                                                   #
-    # Implement this method. Calculate the gini index value before and        #
-    # after splitting y into l_y and r_y                                      #
-    ###########################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    # =============== TODO (students) ===============
 
-    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    # ===============================================
+    raise NotImplementedError("Implement __gini_index")
     return before - after
 
 
@@ -100,12 +87,8 @@ def __error_rate(y, l_y, r_y):
     before = 0.0
     after = 0.0
 
-    ###########################################################################
-    # TODO:                                                                   #
-    # Implement this method. Calculate the error rate value before and        #
-    # after splitting y into l_y and r_y                                      #
-    ###########################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    # =============== TODO (students) ===============
 
-    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    # ===============================================
+    raise NotImplementedError("Implement __error_rate")
     return before - after
