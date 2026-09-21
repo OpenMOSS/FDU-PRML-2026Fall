@@ -35,3 +35,5 @@
 ```
 
 其中，`accuracy_error.py` 和 `evaluation_metrics.py` 对应 Part 1，`criterion.py` 对应 Part 2，`knn_student.py` 对应 Part 3。
+
+将 `学号-姓名` 目录打包后提交至 eLearning，具体提交要求见 eLearning 上的说明。
