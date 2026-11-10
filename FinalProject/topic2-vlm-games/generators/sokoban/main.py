@@ -1,0 +1,213 @@
+import os
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from state_guard import load_exclusions, state_key, DEFAULT_EXCLUSIONS
+import json
+import random
+from sokoban import generate_random_board, SokobanBoard
+from timeout_utils import timeout, TimeoutError
+import datetime
+import logging
+from textured_sokoban import TexturedSokobanBoard, generate_textured_random_board
+# 设置日志记录
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('sokoban_generation.log'),
+        logging.StreamHandler()
+    ]
+)
+
+def get_plot_level_moves(level: int) -> int:
+    moves_range = {
+        1: 5,  # Easy
+        2: 8,  # Medium
+        3: 12  # Hard
+    }
+    return moves_range[level]
+
+@timeout(2)  # 2秒超时
+def generate_question_with_timeout(board: SokobanBoard, num_moves: int) -> tuple:
+    """带超时的问题生成函数"""
+    return board.generate_question(num_moves, 8)
+
+def generate_dataset(num_boards: int, output_dir: str = "sokoban_dataset", exclude_states=DEFAULT_EXCLUSIONS):
+    """Generate dataset with boards, questions, and solutions."""
+    excluded = load_exclusions(exclude_states)
+    rejected_states = 0
+    if os.path.exists(output_dir) and (not os.path.isdir(output_dir) or os.listdir(output_dir)):
+        raise FileExistsError("Use a new or empty output directory")
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "states"), exist_ok=True)
+
+    all_data = []
+    question_counter = 1
+    
+    # 记录失败的问题以供后续分析
+    failed_questions = []
+
+    for board_id in range(1, num_boards + 1):
+        try:
+            # Generate board with appropriate difficulty
+            plot_level = board_id % 3 + 1
+            num_moves = get_plot_level_moves(plot_level)
+            num_boxes = random.randint(2, 3) if board_id % 2 == 0 else 1
+            
+            try:
+                # 5x5 single-box boards are often unsolvable; 10 attempts dropped whole boards
+                for rejection_attempt in range(10000):
+                    board = generate_textured_random_board(size=num_moves, num_boxes=num_boxes,
+                                             check_solvable=num_boxes==1, max_attempts=200)
+                    if state_key("sokoban", board.get_full_state()) not in excluded:
+                        break
+                    rejected_states += 1
+                else:
+                    raise RuntimeError("Test-state rejection budget exhausted")
+            except Exception as e:
+                logging.error(f"Failed to generate board {board_id}: {str(e)}")
+                continue
+
+            # Save visualization and state
+            image_path = f"images/board_{board_id:05d}.png"
+            state_path = f"states/board_{board_id:05d}.json"
+            
+            try:
+                board.save_board(os.path.join(output_dir, image_path))
+                with open(os.path.join(output_dir, state_path), "w") as f:
+                    json.dump(board.get_full_state(), f, indent=4)
+            except Exception as e:
+                logging.error(f"Failed to save board {board_id}: {str(e)}")
+                continue
+
+            # 选择问题类型
+            question_ids = [1,4] if num_boxes > 1 else range(1, 7)
+
+            for question_id in question_ids:
+                try:
+                    qa_type = get_question_type(question_id)
+                    
+                    # 选择合适的内部类型（按题号映射，与 qa_type 无关）
+                    internal_type = {
+                        1: 'next_position',
+                        2: 'box_position',
+                        3: 'steps_to_target',
+                        4: 'state_info_player',
+                        5: 'state_info_distance',
+                        6: 'transition_path',
+                    }[question_id]
+                    
+                    # Generate each question on an isolated board copy. The timeout
+                    # helper uses a background thread on Windows, so a timed-out
+                    # question can otherwise keep mutating the shared board and
+                    # corrupt later QA entries for the saved state.
+                    question_board = SokobanBoard(board.grid.copy(), board.player_x, board.player_y)
+                    question_board.question_types = [internal_type]
+                    
+                    try:
+                        q, analysis, opts, correct = generate_question_with_timeout(question_board, num_moves)
+                    except TimeoutError:
+                        logging.warning(f"Question generation timed out for board {board_id}, question {question_id}")
+                        failed_questions.append({
+                            'board_id': board_id,
+                            'question_id': question_id,
+                            'reason': 'timeout'
+                        })
+                        continue
+                    except Exception as e:
+                        logging.error(f"Failed to generate question for board {board_id}, question {question_id}: {str(e)}")
+                        failed_questions.append({
+                            'board_id': board_id,
+                            'question_id': question_id,
+                            'reason': str(e)
+                        })
+                        continue
+
+                    data_entry = {
+                        "game_name": "sokoban",
+                        "data_id": f"sokoban-data-{board_id:05d}-{question_id:05d}",
+                        "image": image_path,
+                        "state": state_path,
+                        "plot_level": "Easy" if plot_level == 1 else ("Medium" if plot_level == 2 else "Hard"),
+                        "qa_level": get_difficulty(qa_type),
+                        "qa_type": qa_type,
+                        "question_id": question_id,
+                        "question_description": get_question_description(question_id),
+                        "question": q,
+                        "answer": correct + 1,
+                        "analysis": analysis,
+                        "options": opts
+                    }
+                    
+                    all_data.append(data_entry)
+                    question_counter += 1
+
+                except Exception as e:
+                    logging.error(f"Error in question generation loop for board {board_id}, question {question_id}: {str(e)}")
+                    continue
+
+        except Exception as e:
+            logging.error(f"Error in main board generation loop for board {board_id}: {str(e)}")
+            continue
+
+    # 保存数据和失败记录
+    with open(os.path.join(output_dir, "data.json"), "w", encoding="utf-8") as f:
+        json.dump(all_data, f, indent=4, ensure_ascii=False)
+        
+    if failed_questions:
+        with open(os.path.join(output_dir, "failed_questions.json"), "w") as f:
+            json.dump(failed_questions, f, indent=4)
+
+    with open(os.path.join(output_dir, "generation-report.json"), "w") as f:
+        json.dump({"requested_boards": num_boards, "samples": len(all_data), "rejected_test_states": rejected_states, "exclusion_file": str(Path(exclude_states).resolve())}, f, indent=2)
+    logging.info(f"Generated {len(all_data)} questions successfully")
+    logging.info(f"Failed to generate {len(failed_questions)} questions")
+    
+    return all_data
+
+def get_question_type(question_id: int) -> str:
+    """Map question ID to question type."""
+    type_mapping = {
+        1: 'State Prediction',
+        2: 'State Prediction',
+        3: 'Strategy Optimization',
+        4: 'Target Perception',
+        5: 'Target Perception',
+        6: 'Strategy Optimization'  # shortest path to a cell; labelled like this in the released benchmark
+    }
+    return type_mapping.get(question_id, 'State Prediction')
+
+def get_difficulty(qtype: str) -> str:
+    """Return difficulty level for each question type."""
+    difficulties = {
+        'State Prediction': 'Medium',
+        'Strategy Optimization': 'Hard',
+        'Target Perception': 'Easy',
+    }
+    return difficulties.get(qtype, 'Medium')
+
+def get_question_description(question_id: int) -> str:
+    """Get specific description for each question ID."""
+    descriptions = {
+        1: "Given a sequence of player moves, predict the final position of the player",
+        2: "Given a sequence of moves, predict the final position of the box",
+        3: "Determine the minimum number of moves needed to solve the puzzle",
+        4: "Identify the current position of the player on the board",
+        5: "Calculate the Manhattan distance between a box and its target",
+        6: "Find the optimal sequence of moves to reach a specific position"
+    }
+    return descriptions.get(question_id, "")
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--boards", type=int, default=3)
+    parser.add_argument("--output", default="sokoban_dataset")
+    parser.add_argument("--exclude-states", type=Path, default=DEFAULT_EXCLUSIONS)
+    args = parser.parse_args()
+    if args.boards < 1:
+        parser.error("--boards must be positive")
+    dataset = generate_dataset(args.boards, args.output, args.exclude_states)
+    print(f"Generated {len(dataset)} questions")

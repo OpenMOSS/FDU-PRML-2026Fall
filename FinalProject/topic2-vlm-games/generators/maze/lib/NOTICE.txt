@@ -1,0 +1,4 @@
+Google Gson 2.10.1, Apache License 2.0.
+https://github.com/google/gson
+License text: ../../LICENSE
+This dependency is bundled for offline execution of the Maze generator.

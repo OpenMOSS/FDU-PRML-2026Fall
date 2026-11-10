@@ -1,0 +1,4 @@
+# Tested Python generator dependencies; Maze separately requires JDK 17+.
+numpy==2.3.5
+Pillow==12.3.0
+matplotlib==3.11.2

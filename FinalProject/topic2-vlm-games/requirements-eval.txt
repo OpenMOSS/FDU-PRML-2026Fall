@@ -1,0 +1,9 @@
+# Reference evaluation environment: Python 3.12, Linux, NVIDIA GPU.
+# Use an existing course environment when provided; these do not constrain training.
+ms-swift==4.5.3
+vllm==0.24.0
+transformers==5.16.1
+torch==2.11.0
+qwen-vl-utils==0.0.14
+peft==0.20.0
+Pillow==12.3.0
