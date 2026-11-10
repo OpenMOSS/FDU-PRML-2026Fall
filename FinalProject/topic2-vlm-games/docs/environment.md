@@ -32,9 +32,3 @@ javac -version
 ```
 
 Maze 的 `generate.sh` 使用附带的 Gson JAR 编译并运行，无需联网构建。也保留 Gradle 工程，但首次使用 Gradle 可能下载工具及依赖。
-
-## GPU 选择
-
-`evaluate.py` 每次只使用一张卡。省略 `--gpu` 时，优先使用现有 `CUDA_VISIBLE_DEVICES` 的第一个设备；未设置该变量时使用设备 0。Slurm 已分配设备时建议省略该参数。手动选择可用设备可指定 `--gpu 0` 或 GPU UUID。
-
-`--batch-size`、`--max-num-seqs` 和显存占用参数可按设备资源调整，不改变固定解码规则。默认值不保证在所有设备上都能容纳 3B 模型；显存不足时可降低批量和并发。不得改为多卡推理。
