@@ -8,7 +8,7 @@
 python evaluate.py --model /path/to/model --run-name experiment-01
 ```
 
-仅允许 Qwen2.5-VL-3B-Instruct 及其训练得到的模型，不允许 7B。3B 基座和由其得到的完整/合并模型使用相同入口，不要求模型目录名称包含原基座名。合并模型无需 `trainer_state.json`，也无需 `--checkpoint-model`。最终提交必须为完整模型；开发期间可用 `--adapter /path/to/adapter` 配合对应的 `--model /path/to/base` 自测，不能只提交 adapter。
+仅允许 Qwen2.5-VL-3B-Instruct 及其训练得到的模型，不允许 7B。3B 基座和由其得到的完整/合并模型使用相同入口，不要求模型目录名称包含原基座名。合并模型无需 `trainer_state.json`，也无需 `--checkpoint-model`。最终提交必须为完整模型；开发期间可用 `--adapter /path/to/adapter` 配合对应的 `--model /path/to/base` 自测，不能只提交 adapter。直接挂载 LoRA adapter 的评测结果可能与合并后的模型存在一定差异。
 
 模型目录须包含加载所需的配置、分词器、图像处理器与聊天模板文件，可由统一入口直接评测。
 
